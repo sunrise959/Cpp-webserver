@@ -4,24 +4,23 @@
 int httpConnect::m_epollfd = -1;
 int httpConnect::userCnt = 0;
 
-// 在epoll中添加需监听的文件描述符
-void addfd(int epollfd, int fd, bool oneshot){// 默认LT模式，可改为ET
-    struct epoll_event event;
-    event.data.fd = fd;
-    event.events =  EPOLLIN | EPOLLRDHUP;//EPOLLRDHUP事件判断client断开连接
-    if(oneshot){
-        event.events |= EPOLLONESHOT; // 设定仅触发1次
-    }
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
-    // 设置文件描述符非阻塞
-
-}
-
 // 设置文件描述符为非阻塞
 void setNoblock(int fd){
     int flag = fcntl(fd, F_GETFL);
     flag  |= O_NONBLOCK;
     fcntl(fd, F_SETFL, flag);
+}
+
+// 在epoll中添加需监听的文件描述符
+void addfd(int epollfd, int fd, bool oneshot){// 默认LT模式，可改为ET
+    struct epoll_event event;
+    setNoblock(fd);
+    event.data.fd = fd;
+    event.events =  EPOLLIN | EPOLLET | EPOLLRDHUP;//EPOLLRDHUP事件判断client断开连接
+    if(oneshot){
+        event.events |= EPOLLONESHOT; // 设定1个socket同一时间仅由1个线程访问
+    }
+    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
 }
 
 // 在epoll中删除文件描述符
@@ -61,7 +60,25 @@ void httpConnect::closeConnect(){
 
 // 循环读数据
 bool httpConnect::read(){
-    
+    if(readIndex >= READ_BUFFER_SIZE){ // 缓冲区已满
+        return false;
+    }
+    int readBytes = 0;
+    while(1){
+        readBytes = recv(m_socketfd, readBuf + readIndex, READ_BUFFER_SIZE - readIndex, 0);
+        if(readBytes == -1){
+            // 无数据，读取结束
+            if(errno == EAGAIN || errno == EWOULDBLOCK){
+                break;
+            }
+            return false;
+        }else if(readBytes == 0){
+            // 连接已关闭
+            return false;
+        }
+        readIndex += readBytes; 
+    }
+    printf("读取数据：%s\n", readBuf);
     return true;
 }
 

@@ -42,7 +42,9 @@ class httpConnect{
         int m_socketfd; // 该HTTP连接的socket
         struct sockaddr_in m_address; // 通信的socket地址
         char readBuf[READ_BUFFER_SIZE]; // 读缓冲区
-        char write[WRITE_BUFFER_SIZE]; // 写缓冲区
+        char writeBuf[WRITE_BUFFER_SIZE]; // 写缓冲区
+        int readIndex = 0; // 读指针，指向已读数据的下一个字节
+
 };
 
 #endif
