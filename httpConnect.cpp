@@ -59,9 +59,9 @@ void httpConnect::closeConnect(){
     }
 }
 
-// 读数据
+// 循环读数据
 bool httpConnect::read(){
-    printf("start read.\n");
+    
     return true;
 }
 

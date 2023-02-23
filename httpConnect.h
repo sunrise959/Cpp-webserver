@@ -16,6 +16,8 @@
 #include <sys/uio.h>
 #include "locker.h"
 
+#define READ_BUFFER_SIZE 2048
+#define WRITE_BUFFER_SIZE 1024
 
 class httpConnect{
     public:
@@ -39,6 +41,8 @@ class httpConnect{
     private:
         int m_socketfd; // 该HTTP连接的socket
         struct sockaddr_in m_address; // 通信的socket地址
+        char readBuf[READ_BUFFER_SIZE]; // 读缓冲区
+        char write[WRITE_BUFFER_SIZE]; // 写缓冲区
 };
 
 #endif
