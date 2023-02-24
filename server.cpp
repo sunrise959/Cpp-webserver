@@ -31,6 +31,8 @@ extern void addfd(int epollf, int fd, bool oneshot);
 extern void removefd(int epollfd, int fd);
 // 修改文件描述符
 extern void modfd(int epollfd, int fd, int event);
+// 设置文件描述符非阻塞
+extern void setNonblock(int fd);
 
 int main(int argc, char* argv[]){// argc: 参数个数 argv[]: 存储各个参数
     if(argc <= 1){
@@ -81,7 +83,11 @@ int main(int argc, char* argv[]){// argc: 参数个数 argv[]: 存储各个参�
     int epollfd = epoll_create(1);
 
     // 将监听的文件描述符添加到epoll
-    addfd(epollfd, listenfd, false);
+    struct epoll_event event;
+    setNonblock(listenfd);
+    event.data.fd = listenfd;
+    event.events =  EPOLLIN | EPOLLRDHUP;//EPOLLRDHUP事件判断client断开连接
+    epoll_ctl(epollfd, EPOLL_CTL_ADD, listenfd, &event);
     httpConnect::m_epollfd = epollfd;
 
     while(1){
@@ -99,7 +105,6 @@ int main(int argc, char* argv[]){// argc: 参数个数 argv[]: 存储各个参�
                 socklen_t len = sizeof(clientAddr);
                 int connectfd = accept(listenfd, (sockaddr*) &clientAddr, &len);
                 if(connectfd == -1){
-                    printf("Accpet failed.\n");
                     continue;
                 }
                 if(httpConnect::userCnt >= MAX_CONN){
@@ -113,7 +118,7 @@ int main(int argc, char* argv[]){// argc: 参数个数 argv[]: 存储各个参�
             }else if(events[i].events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP)){
                 // 客户端异常或断开连接
                 clients[sockfd].closeConnect();
-            }else if(events[i].events & (EPOLLIN)){ // 读事件就绪
+            }else if(events[i].events & EPOLLIN){ // 读事件就绪
                 if(clients[sockfd].read()){
                     // 1次读完数据
                     pool->append(&clients[sockfd]);
@@ -122,7 +127,7 @@ int main(int argc, char* argv[]){// argc: 参数个数 argv[]: 存储各个参�
                 }
             }else if(events[i].events & EPOLLOUT){ //写事件就绪
                 if(!clients[sockfd].write()){ 
-                    // 1次写完数据失败
+                    // 写数据失败
                     clients[sockfd].closeConnect();
                 }
             }
